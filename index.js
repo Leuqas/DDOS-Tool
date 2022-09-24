@@ -1,9 +1,7 @@
 function startP(i){
 	let request = require('request');
-	let fs = require('fs');
 	
 	let url = process.argv[2];
-	//send 50 mb of data to the server
 	let crypto = require('crypto');
 	let data = crypto.randomBytes(15360).toString('hex');
 	let options = {

